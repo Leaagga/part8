@@ -91,21 +91,13 @@ mongoose
 //     genres: ['refactoring', 'patterns'],
 //   },
 //   {
-//     title: 'Practical Object-Oriented Design, An Agile Primer Using Ruby',
-//     published: 2012,
-//     author: 'Sandi Metz',
-//     id: 'afa5de02-344d-11e9-a414-719c6709cf3e',
-//     genres: ['refactoring', 'design'],
+
 //   },
 //   {
 
 //   },
 //   {
-//     title: 'The Demon ',
-//     published: 1872,
-//     author: 'Fyodor Dostoevsky',
-//     id: 'afa5de04-344d-11e9-a414-719c6709cf3e',
-//     genres: ['classic', 'revolution'],
+
 //   },
 // ]
 
@@ -149,7 +141,7 @@ const resolvers = {
     bookCount: async () => Book.collection.countDocuments(),
     authorCount: async () => Author.collection.countDocuments(),
     allBooks: async (root, arg) => {
-      let result = await Book.find({}).populate('Author')
+      let result = await Book.find({}).populate('author')
       result = arg.author
         ? result.filter((b) => b.author.name == arg.author)
         : result
@@ -165,10 +157,9 @@ const resolvers = {
   },
   Author: {
     bookCount: async (root, arg) => {
-      let book = await Book.find({})
-      const count = await book
-        .populate('author')
-        .filter((b) => b.author.name == root.name).length
+      let book = await Book.find({}).populate('author')
+
+      const count = book.filter((b) => b.author.name == root.name).length
       return count
     },
   },
