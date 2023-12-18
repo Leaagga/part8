@@ -1,5 +1,5 @@
 const { ApolloServer } = require('@apollo/server')
-
+const { GraphQLError } = require('graphql')
 const { startStandaloneServer } = require('@apollo/server/standalone')
 const { v1: uuid } = require('uuid')
 const mongoose = require('mongoose')
@@ -106,6 +106,14 @@ mongoose
 */
 
 const typeDefs = `
+type User{
+  username:String!
+  favoriteGenre:String!
+  id:ID!
+}
+type Token{
+  value:String!
+}
   type Book {
     title: String!
     published: Int!
@@ -120,6 +128,7 @@ const typeDefs = `
     born: Int
   }
   type Query {
+    me:User
     bookCount: Int!
     authorCount: Int!
     allBooks(author: String, genre: String): [Book]
@@ -133,6 +142,14 @@ const typeDefs = `
       genres: [String!]
     ): Book
     editAuthor(name: String!, setBornTo: Int!): Author
+    createUser(
+      username: String!
+      favoriteGenre: String!
+  ): User
+    login(
+      username: String!
+      password: String!
+  ): Token
   }
 `
 
@@ -165,6 +182,14 @@ const resolvers = {
   },
   Mutation: {
     addBook: async (root, arg) => {
+      if (arg.title < 5 || arg.author < 4) {
+        throw new GraphQLError('Invalid argument value', {
+          extensions: {
+            code: 'BAD_USER_INPUT',
+            argumentName: 'title or author',
+          },
+        })
+      }
       let author = await Author.find({})
       console.log('1', author)
       if (!author.find((a) => a.name == arg.author)) {
@@ -195,9 +220,9 @@ const resolvers = {
       if (!author) {
         return null
       }
-
+      console.log(author)
       const newAuthor = await Author.findByIdAndUpdate(
-        { id: author.id },
+        author.id,
         { born: arg.setBornTo },
         { new: true }
       )
