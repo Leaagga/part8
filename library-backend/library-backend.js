@@ -6,8 +6,12 @@ const mongoose = require('mongoose')
 mongoose.set('strictQuery', false)
 const Author = require('./library-author-schema')
 const Book = require('./library-book-schema')
+const User = require('./library-user-schema')
 require('dotenv').config()
-
+const bcrypt = require('bcrypt')
+const saltRounds = 10
+var jwt = require('jsonwebtoken')
+const secret = process.env.SECERT
 const MONGODB_URI = process.env.MONGODB_URI
 
 console.log('connecting to', MONGODB_URI)
@@ -63,25 +67,13 @@ mongoose
 
 // let books = [
 //   {
-//     title: 'Clean Code',
-//     published: 2008,
-//     author: 'Robert Martin',
-//     id: 'afa5b6f4-344d-11e9-a414-719c6709cf3e',
-//     genres: ['refactoring'],
+
 //   },
 //   {
-//     title: 'Agile software development',
-//     published: 2002,
-//     author: 'Robert Martin',
-//     id: 'afa5b6f5-344d-11e9-a414-719c6709cf3e',
-//     genres: ['agile', 'patterns', 'design'],
+
 //   },
 //   {
-//     title: 'Refactoring, edition 2',
-//     published: 2018,
-//     author: 'Martin Fowler',
-//     id: 'afa5de00-344d-11e9-a414-719c6709cf3e',
-//     genres: ['refactoring'],
+//
 //   },
 //   {
 //     title: 'Refactoring to patterns',
@@ -155,6 +147,9 @@ type Token{
 
 const resolvers = {
   Query: {
+    me: (root, arg, context) => {
+      return context.currentUser
+    },
     bookCount: async () => Book.collection.countDocuments(),
     authorCount: async () => Author.collection.countDocuments(),
     allBooks: async (root, arg) => {
@@ -181,7 +176,15 @@ const resolvers = {
     },
   },
   Mutation: {
-    addBook: async (root, arg) => {
+    addBook: async (root, arg, context) => {
+      if (!context.currentUser) {
+        throw new GraphQLError('Invalid argument value', {
+          extensions: {
+            code: 'BAD_USER_INPUT',
+            argumentName: 'token',
+          },
+        })
+      }
       if (arg.title < 5 || arg.author < 4) {
         throw new GraphQLError('Invalid argument value', {
           extensions: {
@@ -214,7 +217,15 @@ const resolvers = {
       console.log('6', response)
       return response
     },
-    editAuthor: async (root, arg) => {
+    editAuthor: async (root, arg, context) => {
+      if (!context.currentUser) {
+        throw new GraphQLError('Invalid argument value', {
+          extensions: {
+            code: 'BAD_USER_INPUT',
+            argumentName: 'token',
+          },
+        })
+      }
       let author = await Author.find({})
       author = author.find((a) => a.name == arg.name)
       if (!author) {
@@ -228,6 +239,37 @@ const resolvers = {
       )
       return newAuthor
     },
+    createUser: async (root, arg) => {
+      const user = new User({
+        username: arg.username,
+        favoriteGenre: arg.favoriteGenre,
+      })
+      try {
+        const savedUser = await user.save()
+        return savedUser
+      } catch {
+        throw new GraphQLError('Invalid argument value', {
+          extensions: {
+            code: 'BAD_USER_INPUT',
+            argumentName: 'username',
+          },
+        })
+      }
+    },
+    login: async (root, arg) => {
+      const user = await User.findOne({ username: arg.username })
+      if (!(user && arg.password == 'secret')) {
+        throw new GraphQLError('Invalid argument value', {
+          extensions: {
+            code: 'BAD_USER_INPUT',
+            argumentName: 'username or password',
+          },
+        })
+      }
+      const usedForToken = { username: user.username, id: user.id }
+      const token = jwt.sign(usedForToken, secret)
+      return { value: token }
+    },
   },
 }
 
@@ -238,6 +280,14 @@ const server = new ApolloServer({
 
 startStandaloneServer(server, {
   listen: { port: 4000 },
+  context: async ({ req, res }) => {
+    const auth = req ? req.headers.authorization : null
+    if (auth && auth.startsWith('Bearer ')) {
+      const decodedToken = jwt.verify(auth.substring(7), secret)
+      const currentUser = await User.findById(decodedToken.id)
+      return { currentUser }
+    }
+  },
 }).then(({ url }) => {
   console.log(`Server ready at ${url}`)
 })
