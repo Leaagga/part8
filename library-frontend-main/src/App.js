@@ -13,20 +13,25 @@ const App = () => {
       setToken(savedToken)
     }
   }, [token])
-
-  if (!token) {
-    return (
-      <div>
-        <LogInForm setToken={setToken} />
-      </div>
-    )
+  const handleLogout = () => {
+    setToken(null)
+    localStorage.removeItem('logInUserToken')
   }
   return (
     <div>
       <div>
         <button onClick={() => setPage('authors')}>authors</button>
         <button onClick={() => setPage('books')}>books</button>
-        <button onClick={() => setPage('add')}>add book</button>
+        {!token ? (
+          <>
+            <button onClick={() => setPage('login')}>log in</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => setPage('add')}>add book</button>
+            <button onClick={handleLogout}>log out</button>
+          </>
+        )}
       </div>
 
       <Authors show={page === 'authors'} />
@@ -34,6 +39,7 @@ const App = () => {
       <Books show={page === 'books'} />
 
       <NewBook show={page === 'add'} />
+      {page === 'login' ? <LogInForm setToken={setToken} /> : null}
     </div>
   )
 }
