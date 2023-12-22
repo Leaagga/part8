@@ -1,11 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Authors from './components/Authors'
 import Books from './components/Books'
 import NewBook from './components/NewBook'
-
+import LogInForm from './components/LogInForm'
 const App = () => {
   const [page, setPage] = useState('authors')
+  const [token, setToken] = useState(null)
+  let savedToken = null
+  useEffect(() => {
+    savedToken = localStorage.getItem('logInUserToken')
+    if (savedToken) {
+      setToken(savedToken)
+    }
+  }, [token])
 
+  if (!token) {
+    return (
+      <div>
+        <LogInForm setToken={setToken} />
+      </div>
+    )
+  }
   return (
     <div>
       <div>

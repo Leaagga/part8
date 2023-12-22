@@ -67,30 +67,12 @@ mongoose
 
 // let books = [
 //   {
-
-//   },
-//   {
-
-//   },
-//   {
-//
-//   },
-//   {
 //     title: 'Refactoring to patterns',
 //     published: 2008,
 //     author: 'Joshua Kerievsky',
 //     id: 'afa5de01-344d-11e9-a414-719c6709cf3e',
 //     genres: ['refactoring', 'patterns'],
-//   },
-//   {
-
-//   },
-//   {
-
-//   },
-//   {
-
-//   },
+//   }
 // ]
 
 /*
@@ -258,6 +240,7 @@ const resolvers = {
     },
     login: async (root, arg) => {
       const user = await User.findOne({ username: arg.username })
+      console.log(user)
       if (!(user && arg.password == 'secret')) {
         throw new GraphQLError('Invalid argument value', {
           extensions: {
@@ -267,7 +250,9 @@ const resolvers = {
         })
       }
       const usedForToken = { username: user.username, id: user.id }
+      console.log(usedForToken)
       const token = jwt.sign(usedForToken, secret)
+      console.log(token)
       return { value: token }
     },
   },
