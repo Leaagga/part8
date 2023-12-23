@@ -60,3 +60,12 @@ export const LOG_IN = gql`
     }
   }
 `
+export const GET_USER = gql`
+  query {
+    me {
+      username
+      favoriteGenre
+      id
+    }
+  }
+`

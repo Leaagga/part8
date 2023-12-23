@@ -130,6 +130,7 @@ type Token{
 const resolvers = {
   Query: {
     me: (root, arg, context) => {
+      console.log(context.currentUser)
       return context.currentUser
     },
     bookCount: async () => Book.collection.countDocuments(),
