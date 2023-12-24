@@ -1,17 +1,29 @@
 const { ApolloServer } = require('@apollo/server')
+const { WebSocketServer } = require('ws')
+const { useServer } = require('graphql-ws/lib/use/ws')
 const { GraphQLError } = require('graphql')
+const { WebSocketServer } = require('ws')
+const { useServer } = require('graphql-ws/lib/use/ws')
+const { expressMiddleware } = require('@apollo/server/express4')
+const {
+  ApolloServerPluginDrainHttpServer,
+} = require('@apollo/server/plugin/drainHttpServer')
 const { startStandaloneServer } = require('@apollo/server/standalone')
 const { v1: uuid } = require('uuid')
+const { makeExecutableSchema } = require('@graphql-tools/schema')
+const express = require('express')
+const cors = require('cors')
+const http = require('http')
 const mongoose = require('mongoose')
 mongoose.set('strictQuery', false)
-const Author = require('./library-author-schema')
-const Book = require('./library-book-schema')
-const User = require('./library-user-schema')
+const typeDefs = require('./schema')
+const resolvers = require('./resolvers')
+const User = require('./models/library-user-schema')
 require('dotenv').config()
 const bcrypt = require('bcrypt')
 const saltRounds = 10
 var jwt = require('jsonwebtoken')
-const secret = process.env.SECERT
+
 const MONGODB_URI = process.env.MONGODB_URI
 
 console.log('connecting to', MONGODB_URI)
@@ -74,206 +86,53 @@ mongoose
 //     genres: ['refactoring', 'patterns'],
 //   }
 // ]
-
+const secret = process.env.SECERT
 /*
   you can remove the placeholder query once your first one has been implemented 
 */
+const start = async () => {
+  const app = express()
+  const httpServer = http.createServer(app)
+  const wsServer = new WebSocketServer({ server: httpServer, path: '/' })
+  const schema = makeExecutableSchema({ typeDefs, resolvers })
+  const serverCleanup = useServer({ schema }, wsServer)
+  const server = new ApolloServer({
+    schema,
+    plugins: [
+      ApolloServerPluginDrainHttpServer({ httpServer }),
+      {
+        async serverWillStart() {
+          return {
+            async drainServer() {
+              await serverCleanup.dispose()
+            },
+          }
+        },
+      },
+    ],
+  })
+  await server.start()
+  app.use(
+    '/',
+    cors(),
+    express.json(),
+    expressMiddleware(server, {
+      context: async ({ req }) => {
+        const auth = req ? req.headers.authorization : null
+        if (auth && auth.startsWith('Bearer ')) {
+          const decodedToken = jwt.verify(auth.substring(7), secret)
+          const currentUser = await User.findById(decodedToken.id)
 
-const typeDefs = `
-type User{
-  username:String!
-  favoriteGenre:String!
-  id:ID!
+          return { currentUser }
+        }
+      },
+    })
+  )
+
+  const PORT = 4000
+
+  httpServer.listen(PORT, () =>
+    console.log(`Server is now running on http://localhost:${PORT}`)
+  )
 }
-type Token{
-  value:String!
-}
-  type Book {
-    title: String!
-    published: Int!
-    author: Author!
-    id: ID!
-    genres: [String]
-  }
-  type Author {
-    name: String!
-    bookCount: Int!
-    id: ID!
-    born: Int
-  }
-  type Query {
-    me:User
-    bookCount: Int!
-    authorCount: Int!
-    allBooks(author: String, genre: String): [Book]
-    allAuthors: [Author]
-  }
-  type Mutation {
-    addBook(
-      title: String!
-      author: String!
-      published: Int!
-      genres: [String!]
-    ): Book
-    editAuthor(name: String!, setBornTo: Int!): Author
-    createUser(
-      username: String!
-      favoriteGenre: String!
-  ): User
-    login(
-      username: String!
-      password: String!
-  ): Token
-  }
-`
-
-const resolvers = {
-  Query: {
-    me: (root, arg, context) => {
-      console.log(context.currentUser)
-      return context.currentUser
-    },
-    bookCount: async () => Book.collection.countDocuments(),
-    authorCount: async () => Author.collection.countDocuments(),
-    allBooks: async (root, arg) => {
-      let result = await Book.find({}).populate('author')
-      result = arg.author
-        ? result.filter((b) => b.author.name == arg.author)
-        : result
-      result = arg.genre
-        ? result.filter((b) => b.genres.includes(arg.genre))
-        : result
-      return result
-    },
-    allAuthors: async () => {
-      const response = await Author.find({})
-      return response
-    },
-  },
-  Author: {
-    bookCount: async (root, arg) => {
-      let book = await Book.find({}).populate('author')
-
-      const count = book.filter((b) => b.author.name == root.name).length
-      return count
-    },
-  },
-  Mutation: {
-    addBook: async (root, arg, context) => {
-      if (!context.currentUser) {
-        throw new GraphQLError('Invalid argument value', {
-          extensions: {
-            code: 'BAD_USER_INPUT',
-            argumentName: 'token',
-          },
-        })
-      }
-      if (arg.title < 5 || arg.author < 4) {
-        throw new GraphQLError('Invalid argument value', {
-          extensions: {
-            code: 'BAD_USER_INPUT',
-            argumentName: 'title or author',
-          },
-        })
-      }
-      let author = await Author.find({})
-      console.log('1', author)
-      if (!author.find((a) => a.name == arg.author)) {
-        const author = new Author({ name: arg.author })
-        await author.save()
-      }
-      author = await Author.find({})
-      console.log('2', author)
-      author = author.find((a) => a.name == arg.author)
-      console.log('3', author)
-      console.log(arg.title, arg.published, arg.genres, author.id)
-      const book = new Book({
-        title: arg.title,
-        published: arg.published,
-        genres: arg.genres,
-        author: author.id,
-      })
-      console.log('4', book)
-      let response = await book.save()
-      console.log('5', response)
-      response = await response.populate('author')
-      console.log('6', response)
-      return response
-    },
-    editAuthor: async (root, arg, context) => {
-      if (!context.currentUser) {
-        throw new GraphQLError('Invalid argument value', {
-          extensions: {
-            code: 'BAD_USER_INPUT',
-            argumentName: 'token',
-          },
-        })
-      }
-      let author = await Author.find({})
-      author = author.find((a) => a.name == arg.name)
-      if (!author) {
-        return null
-      }
-      console.log(author)
-      const newAuthor = await Author.findByIdAndUpdate(
-        author.id,
-        { born: arg.setBornTo },
-        { new: true }
-      )
-      return newAuthor
-    },
-    createUser: async (root, arg) => {
-      const user = new User({
-        username: arg.username,
-        favoriteGenre: arg.favoriteGenre,
-      })
-      try {
-        const savedUser = await user.save()
-        return savedUser
-      } catch {
-        throw new GraphQLError('Invalid argument value', {
-          extensions: {
-            code: 'BAD_USER_INPUT',
-            argumentName: 'username',
-          },
-        })
-      }
-    },
-    login: async (root, arg) => {
-      const user = await User.findOne({ username: arg.username })
-      console.log(user)
-      if (!(user && arg.password == 'secret')) {
-        throw new GraphQLError('Invalid argument value', {
-          extensions: {
-            code: 'BAD_USER_INPUT',
-            argumentName: 'username or password',
-          },
-        })
-      }
-      const usedForToken = { username: user.username, id: user.id }
-      console.log(usedForToken)
-      const token = jwt.sign(usedForToken, secret)
-      console.log(token)
-      return { value: token }
-    },
-  },
-}
-
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-})
-
-startStandaloneServer(server, {
-  listen: { port: 4000 },
-  context: async ({ req, res }) => {
-    const auth = req ? req.headers.authorization : null
-    if (auth && auth.startsWith('Bearer ')) {
-      const decodedToken = jwt.verify(auth.substring(7), secret)
-      const currentUser = await User.findById(decodedToken.id)
-      return { currentUser }
-    }
-  },
-}).then(({ url }) => {
-  console.log(`Server ready at ${url}`)
-})
+start()

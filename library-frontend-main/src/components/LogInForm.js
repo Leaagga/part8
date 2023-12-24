@@ -1,10 +1,13 @@
-import { LOG_IN } from '../query'
+import { LOG_IN, ALL_AUTHORS, ALL_BOOKS } from '../query'
 import { useState, useEffect } from 'react'
 import { useMutation } from '@apollo/client'
+
 const LogInForm = ({ setToken }) => {
   const [username, setUsername] = useState()
   const [password, setPassword] = useState()
-  const [LogIn, result] = useMutation(LOG_IN)
+  const [LogIn, result] = useMutation(LOG_IN, {
+    refetchQueries: [{ query: ALL_BOOKS }, { query: ALL_AUTHORS }],
+  })
   useEffect(() => {
     if (result.data) {
       console.log(result.data)
