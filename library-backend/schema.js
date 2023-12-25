@@ -1,6 +1,6 @@
 const typeDefs = `
 type Subscription {
-  bookAdded{Book!}}
+  bookAdded:Book!}
 type User{
   username:String!
   favoriteGenre:String!

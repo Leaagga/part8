@@ -1,8 +1,8 @@
 const { ApolloServer } = require('@apollo/server')
 const { WebSocketServer } = require('ws')
-const { useServer } = require('graphql-ws/lib/use/ws')
+
 const { GraphQLError } = require('graphql')
-const { WebSocketServer } = require('ws')
+
 const { useServer } = require('graphql-ws/lib/use/ws')
 const { expressMiddleware } = require('@apollo/server/express4')
 const {
@@ -93,9 +93,14 @@ const secret = process.env.SECERT
 const start = async () => {
   const app = express()
   const httpServer = http.createServer(app)
-  const wsServer = new WebSocketServer({ server: httpServer, path: '/' })
+
+  const wsServer = new WebSocketServer({
+    server: httpServer,
+    path: '/',
+  })
   const schema = makeExecutableSchema({ typeDefs, resolvers })
   const serverCleanup = useServer({ schema }, wsServer)
+
   const server = new ApolloServer({
     schema,
     plugins: [
