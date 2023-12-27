@@ -5,17 +5,34 @@ import Books from './components/Books'
 import NewBook from './components/NewBook'
 import LogInForm from './components/LogInForm'
 import Recommendation from './components/Recommendation'
-import { BOOK_ADDED } from './query'
+import { ALL_BOOKS, BOOK_ADDED } from './query'
+export const updateCache = (cache, query, addedBook) => {
+  const uniqByTitle = (a) => {
+    console.log(a)
+    let seen = new Set()
+    return a.filter((item) => {
+      console.log(item)
+      let k = item.title
+      return seen.has(k) ? false : seen.add(k)
+    })
+  }
+  cache.updateQuery(query, ({ allBooks }) => {
+    console.log(allBooks)
+    console.log(addedBook)
+    return { allBooks: uniqByTitle(allBooks.concat(addedBook)) }
+  })
+}
 const App = () => {
   const [page, setPage] = useState('authors')
   const [token, setToken] = useState(null)
   useSubscription(BOOK_ADDED, {
-    onData: ({ data }) => {
+    onData: ({ data, client }) => {
       console.log(data)
-
-      const title = data.data.bookAdded.title
-      const author = data.data.bookAdded.author.name
+      const addedBook = data.data.bookAdded
+      const title = addedBook.title
+      const author = addedBook.author.name
       window.alert(`${title} by ${author} added`)
+      updateCache(client.cache, { query: ALL_BOOKS }, addedBook)
     },
   })
   let savedToken = null
