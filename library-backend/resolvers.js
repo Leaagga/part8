@@ -32,9 +32,7 @@ const resolvers = {
   },
   Author: {
     bookCount: async (root, arg) => {
-      let book = await Book.find({}).populate('author')
-
-      const count = book.filter((b) => b.author.name == root.name).length
+      const count = root.bookOf.length
       return count
     },
   },
@@ -136,6 +134,19 @@ const resolvers = {
       const token = jwt.sign(usedForToken, secret)
       console.log(token)
       return { value: token }
+    },
+    updateBookCount: async () => {
+      const authors = await Author.find({})
+      const books = await Book.find({})
+      authors.forEach(async (author) => {
+        let bookOf = books.filter((b) => b.author == author.id).map((b) => b.id)
+        const response = await Author.findByIdAndUpdate(
+          author.id,
+          { bookOf: bookOf },
+          { new: true }
+        )
+        console.log(response)
+      })
     },
   },
   Subscription: {

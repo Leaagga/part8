@@ -30,6 +30,7 @@ type Token{
     allAuthors: [Author]
   }
   type Mutation {
+    updateBookCount:Author
     addBook(
       title: String!
       author: String!

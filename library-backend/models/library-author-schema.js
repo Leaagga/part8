@@ -15,6 +15,12 @@ const authorSchema = new mongoose.Schema({
   born: {
     type: Number,
   },
+  bookOf: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Book',
+    },
+  ],
 })
 
 // schema.plugin(uniqueValidator)
