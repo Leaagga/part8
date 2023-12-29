@@ -77,6 +77,9 @@ const resolvers = {
       response = await response.populate('author')
       console.log('6', response)
       pubsub.publish('BOOK_ADDED', { bookAdded: response })
+      await Author.findByIdAndUpdate(author.id, {
+        bookOf: author.bookof.concat(response.id),
+      })
       return response
     },
     editAuthor: async (root, arg, context) => {
