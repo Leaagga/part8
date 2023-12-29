@@ -9,6 +9,16 @@ require('dotenv').config()
 const secret = process.env.SECERT
 const resolvers = {
   Query: {
+    bookGenres: async () => {
+      const result = await Book.find({})
+
+      let genresSet = new Set()
+      result.forEach((b) =>
+        b.genres.forEach((g) => (genresSet.has(g) ? null : genresSet.add(g)))
+      )
+      const bookGenres = [...genresSet]
+      return bookGenres
+    },
     me: (root, arg, context) => {
       console.log(context.currentUser)
       return context.currentUser

@@ -26,6 +26,7 @@ type Token{
     me:User
     bookCount: Int!
     authorCount: Int!
+    bookGenres:[String]
     allBooks(author: String, genre: String): [Book]
     allAuthors: [Author]
   }
