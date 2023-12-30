@@ -32,7 +32,11 @@ const App = () => {
       const title = addedBook.title
       const author = addedBook.author.name
       window.alert(`${title} by ${author} added`)
-      updateCache(client.cache, { query: ALL_BOOKS }, addedBook)
+      updateCache(
+        client.cache,
+        { query: ALL_BOOKS, variables: { genre: null } },
+        addedBook
+      )
     },
   })
   let savedToken = null

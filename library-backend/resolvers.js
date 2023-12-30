@@ -84,16 +84,32 @@ const resolvers = {
       console.log('4', book)
       let response = await book.save()
       console.log('5', response)
-      response = await response.populate('author')
+
       console.log('6', response)
-      pubsub.publish('BOOK_ADDED', { bookAdded: response })
-      await Author.findByIdAndUpdate(author.id, {
-        bookOf: author.bookof.concat(response.id),
+      const bookOf = [...author.bookOf, response.id]
+      console.log('7', bookOf)
+      const authorBookOf = await Author.findByIdAndUpdate(author.id, {
+        bookOf: bookOf,
       })
+      console.log('8', authorBookOf)
+      response = await response.populate('author')
+      console.log('9', response)
+      try {
+        pubsub.publish('BOOK_ADDED', { bookAdded: response })
+      } catch (error) {
+        throw new GraphQLError(`Invalid argument value: ${error}`, {
+          extensions: {
+            code: 'BAD_USER_INPUT',
+            argumentName: 'title or author',
+          },
+        })
+      }
+      console.log('10')
       return response
     },
     editAuthor: async (root, arg, context) => {
       if (!context.currentUser) {
+        console.log(error)
         throw new GraphQLError('Invalid argument value', {
           extensions: {
             code: 'BAD_USER_INPUT',
